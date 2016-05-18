@@ -11,25 +11,26 @@ namespace AspDotNetDataDownloader
     {
         static void Main(string[] args)
         {
-            var uri = ConfigurationManager.AppSettings["uri"];
-            var downloadLinkElementId = ConfigurationManager.AppSettings["downloadLinkElementId"];
-            var expectedContentType = ConfigurationManager.AppSettings["expectedContentType"];
-            var client = new RestClient(uri);
-            client.CookieContainer = new CookieContainer();
-
-            var html = ExecuteGet(client);
-            var viewState = GetElementValueById(html, "__VIEWSTATE");
-            var viewStateGenerator = GetElementValueById(html, "__VIEWSTATEGENERATOR");
-            var eventValidation = GetElementValueById(html, "__EVENTVALIDATION");
+            var downloader = new DataDownloader(
+                ConfigurationManager.AppSettings["downloadLinkElementId"],
+                ConfigurationManager.AppSettings["expectedContentType"],
+                new RestClient(ConfigurationManager.AppSettings["uri"])
+                );
             
-            var response = ExecutePost(client, downloadLinkElementId, viewState, viewStateGenerator, eventValidation);
+            var html = downloader.ExecuteGet();
+            var viewState = DocumentParser.GetElementValueById(html, "__VIEWSTATE");
+            var viewStateGenerator = DocumentParser.GetElementValueById(html, "__VIEWSTATEGENERATOR");
+            var eventValidation = DocumentParser.GetElementValueById(html, "__EVENTVALIDATION");
+            
+            var response = downloader.ExecutePost(viewState, viewStateGenerator, eventValidation);
             if (response == null || string.IsNullOrWhiteSpace(response.Content))
             {
                 Console.WriteLine("Response was empty or an error occurred.");
             }
-            else if (!string.IsNullOrWhiteSpace(expectedContentType) && !response.ContentType.ToLower().Contains(expectedContentType))
+            else if (!string.IsNullOrWhiteSpace(downloader.ExpectedContentType) && 
+                     !response.ContentType.ToLower().Contains(downloader.ExpectedContentType))
             {
-                Console.WriteLine(string.Format("Unexpected response. Expected content-type to contain '{0}' but received '{1}'.", expectedContentType, response.ContentType));
+                Console.WriteLine(string.Format("Unexpected response. Expected content-type to contain '{0}' but received '{1}'.", downloader.ExpectedContentType, response.ContentType));
             }
             else
             {
@@ -43,52 +44,7 @@ namespace AspDotNetDataDownloader
             Console.ReadKey();
         }
 
-        private static string ExecuteGet(IRestClient client)
-        {
-            var request = new RestRequest(Method.GET);
-            Console.WriteLine("Requesting HTML...");
-            var response = client.Execute(request);            
-            Console.WriteLine("HTML response complete.");
-            return response.Content;
-        }
-
-        private static string GetElementValueById(string html, string id)
-        {
-            var doc = new HtmlDocument();
-            doc.LoadHtml(html);
-            var viewState = doc.GetElementbyId(id);
-            if (viewState == null || viewState.Attributes == null)
-            {
-                Console.WriteLine("ViewState not found.");
-            } 
-            return viewState.Attributes["value"].Value ?? string.Empty;
-        }
-
-        private static IRestResponse ExecutePost(IRestClient client, string downloadLinkElementId, string viewstate, string viewstateGenerator, string eventValidation)
-        {
-            var request = new RestRequest(Method.POST);
-
-            AddParams(downloadLinkElementId, viewstate, viewstateGenerator, eventValidation, request);
-            AddHeaders(request);
-
-            Console.WriteLine("Beginning file download request...");
-            var response = client.Execute(request);
-            Console.WriteLine("Response received.");
-
-            return response;
-        }
-
-        private static void AddHeaders(RestRequest request)
-        {
-            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
-        }
-
-        private static void AddParams(string downloadLinkElementId, string viewstate, string viewstateGenerator, string eventValidation, RestRequest request)
-        {
-            if (!string.IsNullOrWhiteSpace(downloadLinkElementId)) request.AddParameter("__EVENTTARGET", downloadLinkElementId);
-            if (!string.IsNullOrWhiteSpace(viewstate)) request.AddParameter("__VIEWSTATE", viewstate);
-            if (!string.IsNullOrWhiteSpace(viewstateGenerator)) request.AddParameter("__VIEWSTATEGENERATOR", viewstateGenerator);
-            if (!string.IsNullOrWhiteSpace(eventValidation)) request.AddParameter("__EVENTVALIDATION", eventValidation);
-        }
+        
+      
     }
 }
