@@ -27,7 +27,7 @@ namespace AspDotNetDataDownloader
             {
                 Console.WriteLine("Response was empty or an error occurred.");
             }
-            else if (!response.ContentType.ToLower().Contains(expectedContentType))
+            else if (!string.IsNullOrWhiteSpace(expectedContentType) && !response.ContentType.ToLower().Contains(expectedContentType))
             {
                 Console.WriteLine(string.Format("Unexpected response. Expected content-type to contain '{0}' but received '{1}'.", expectedContentType, response.ContentType));
             }
@@ -37,7 +37,6 @@ namespace AspDotNetDataDownloader
                 Console.WriteLine(string.Format("Writing output to file {0}...", outputFile));
                 File.WriteAllText(outputFile, response.Content);
                 Console.WriteLine(string.Format("Output file {0} created.", outputFile));
-
             }
 
             Console.WriteLine("Press any key to exit...");
