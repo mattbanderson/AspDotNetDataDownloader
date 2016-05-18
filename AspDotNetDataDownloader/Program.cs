@@ -17,7 +17,7 @@ namespace AspDotNetDataDownloader
             var client = new RestClient(uri);
             client.CookieContainer = new CookieContainer();
 
-            var html = GetHtml(client);
+            var html = ExecuteGet(client);
             var viewState = GetElementValueById(html, "__VIEWSTATE");
             var viewStateGenerator = GetElementValueById(html, "__VIEWSTATEGENERATOR");
             var eventValidation = GetElementValueById(html, "__EVENTVALIDATION");
@@ -43,7 +43,7 @@ namespace AspDotNetDataDownloader
             Console.ReadKey();
         }
 
-        private static string GetHtml(IRestClient client)
+        private static string ExecuteGet(IRestClient client)
         {
             var request = new RestRequest(Method.GET);
             Console.WriteLine("Requesting HTML...");
@@ -67,18 +67,28 @@ namespace AspDotNetDataDownloader
         private static IRestResponse ExecutePost(IRestClient client, string downloadLinkElementId, string viewstate, string viewstateGenerator, string eventValidation)
         {
             var request = new RestRequest(Method.POST);
-            request.AddParameter("__EVENTTARGET", downloadLinkElementId);
-            request.AddParameter("__VIEWSTATE", viewstate);
-            request.AddParameter("__VIEWSTATEGENERATOR", viewstateGenerator);
-            request.AddParameter("__EVENTVALIDATION", eventValidation);
 
-            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
-           
+            AddParams(downloadLinkElementId, viewstate, viewstateGenerator, eventValidation, request);
+            AddHeaders(request);
+
             Console.WriteLine("Beginning file download request...");
             var response = client.Execute(request);
             Console.WriteLine("Response received.");
 
             return response;
+        }
+
+        private static void AddHeaders(RestRequest request)
+        {
+            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
+        }
+
+        private static void AddParams(string downloadLinkElementId, string viewstate, string viewstateGenerator, string eventValidation, RestRequest request)
+        {
+            if (!string.IsNullOrWhiteSpace(downloadLinkElementId)) request.AddParameter("__EVENTTARGET", downloadLinkElementId);
+            if (!string.IsNullOrWhiteSpace(viewstate)) request.AddParameter("__VIEWSTATE", viewstate);
+            if (!string.IsNullOrWhiteSpace(viewstateGenerator)) request.AddParameter("__VIEWSTATEGENERATOR", viewstateGenerator);
+            if (!string.IsNullOrWhiteSpace(eventValidation)) request.AddParameter("__EVENTVALIDATION", eventValidation);
         }
     }
 }
